@@ -1,0 +1,51 @@
+#!/bin/sh
+
+if=$1
+addr=$2
+router=$3
+
+
+if [ $# = 0 ]; then
+    /usr/sbin/networksetup -listnetworkserviceorder
+    exit 0
+fi
+
+en=`/usr/sbin/networksetup -listnetworkserviceorder | grep ${if}`
+en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`
+
+if [ $# = 1 ]; then
+    /usr/sbin/networksetup -getinfo ${en}
+fi
+
+if [ $# != 1 ]; then
+    mask=`echo ${addr} |
+        awk -F"/" '{
+            prefix = int($2 / 8);
+            mask = 8 - ($2 % 8);
+            for(i = 1; i <= prefix; i++) {
+                subnet[i] = "255";
+            }
+            prefix++;
+            subnet[prefix] = 256 - (2^mask);
+            prefix++;
+            if(prefix <= 4) {
+                for(i = prefix; i <= 4; i++) {
+                    subnet[i] = "0";
+                }
+            }
+            subnetmask = subnet[1] "." subnet[2] "." subnet[3] "." subnet[4];
+            print subnetmask;
+        }'`
+    addr=`echo ${addr} | 
+        awk -F"/" '{
+            split($1, ip, ".");
+            for(i = 1; i <= 4; i++) {
+                if(255 <= int(ip[i])){ 
+                    print "Invalid Argment";
+                    exit 1;
+                } 
+            } 
+            print $1;
+        }'`
+    /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router}
+fi
