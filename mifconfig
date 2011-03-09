@@ -1,23 +1,46 @@
 #!/bin/sh
 
 if=$1
-addr=$2
-router=$3
+addr=""
+mask=""
+router=""
 
-
+# argment check
 if [ $# = 0 ]; then
     /usr/sbin/networksetup -listnetworkserviceorder
     exit 0
 fi
 
+# interface name resolv
 en=`/usr/sbin/networksetup -listnetworkserviceorder | grep ${if}`
 en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`
-
-if [ $# = 1 ]; then
-    /usr/sbin/networksetup -getinfo ${en}
+/usr/sbin/networksetup -getinfo ${en} >> /dev/null
+if [ $? != 0 ]; then
+    echo "mifconfig: interface ${en} does not exist";
+    exit 1;
 fi
 
-if [ $# != 1 ]; then
+# Internet Protocol Version(4 or 6)
+if [ "$2" = "inet" ]; then
+    shift;
+    addr=$2;
+    addrv="inet";
+elif [ "$2" = "inet6" ]; then
+    shift;
+    addr=$2;
+    addrv="inet6";
+else
+    addr=$2;
+    addrv="inet";
+fi
+
+# Default Gateway
+if [ "$3" != "" ]; then
+    router=$3;
+fi
+
+# subnetmask calulation (for v4)
+if [ "${addrv}" = "inet" ]; then
     mask=`echo ${addr} |
         awk -F"/" '{
             prefix = int($2 / 8);
@@ -47,5 +70,28 @@ if [ $# != 1 ]; then
             } 
             print $1;
         }'`
-    /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router}
+    if [ "${mask}" != "0.0.0.0" ]; then
+        continue;
+    elif [ "$3" = "netmask" ]; then
+        shift;
+        mask=$3;
+    else
+        mask=$3;
+    fi
 fi
+
+# Print Interface Value
+if [ $# = 1 ]; then
+    /usr/sbin/networksetup -getinfo ${en}
+fi
+
+# Setting Interface 
+if [ $# != 1 ]; then
+    if [ "${addrv}" = "inet" ]; then
+        /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router}
+    elif [ "${addrv}" = "inet6" ]; then
+        echo "IPv6 configuration not implimented";
+    fi
+fi
+
+exit 0;
