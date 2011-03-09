@@ -16,8 +16,42 @@ en=`/usr/sbin/networksetup -listnetworkserviceorder | grep ${if}`
 en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`
 /usr/sbin/networksetup -getinfo ${en} >> /dev/null
 if [ $? != 0 ]; then
+    if [ "$2" = "create" || "$2" = "plumb" ]; then
+        shift;
+        if ["$2" = "vlan" ]; then
+            shift;
+            vlanid=$2;
+            if [ "$3" = "vlandev" ]; then
+                shift;
+                vlandev=$3;
+                /usr/sbin/networksetup -createVLAN ${en} ${vlandev} ${vlanid} 
+            else
+                echo "mifconfig: interface ${en} does not exist"
+                exit 1;
+            fi
+        else
+            echo "mifconfig: interface ${en} does not exist"
+        fi
+    elif
+    if [ "$2" = "delete" || "$2" = "unplumb" ]; then
+        shift;
+        if ["$2" = "vlan" ]; then
+            shift; 
+            vlanid=$2;
+            if [ "$3" = "vlandev" ]; then
+                shift;
+                vlandev=$3;
+                /usr/sbin/networksetup -deleteVLAN ${en} ${vlandev} ${vlanid} 
+            else
+                echo "mifconfig: interface ${en} does not exist"
+                exit 1;
+            fi  
+        else
+        echo "mifconfig: interface ${en} does not exist"
+    fi
+    elif
     echo "mifconfig: interface ${en} does not exist";
-    exit 1;
+        exit 1;
 fi
 
 # Internet Protocol Version(4 or 6)
