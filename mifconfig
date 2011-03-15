@@ -69,9 +69,9 @@ else
 fi
 
 # Default Gateway
-if [ "$3" != "" ]; then
-    router=$3;
-fi
+#if [ "$3" != "" ]; then
+#    router=$3;
+#fi
 
 # subnetmask calulation (for v4)
 if [ "${addrv}" = "inet" ]; then
