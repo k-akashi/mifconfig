@@ -52,6 +52,7 @@ if [ $? != 0 ]; then
     elif
     echo "mifconfig: interface ${en} does not exist";
         exit 1;
+    fi
 fi
 
 # Internet Protocol Version(4 or 6)
