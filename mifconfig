@@ -32,8 +32,7 @@ if [ $? != 0 ]; then
         else
             echo "mifconfig: interface ${en} does not exist"
         fi
-    elif
-    if [ "$2" = "delete" || "$2" = "unplumb" ]; then
+    elif [ "$2" = "delete" || "$2" = "unplumb" ]; then
         shift;
         if ["$2" = "vlan" ]; then
             shift; 
@@ -47,10 +46,10 @@ if [ $? != 0 ]; then
                 exit 1;
             fi  
         else
-        echo "mifconfig: interface ${en} does not exist"
-    fi
-    elif
-    echo "mifconfig: interface ${en} does not exist";
+            echo "mifconfig: interface ${en} does not exist"
+        fi
+    else
+        echo "mifconfig: interface ${en} does not exist";
         exit 1;
     fi
 fi
