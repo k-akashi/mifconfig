@@ -1,82 +1,72 @@
 #!/bin/sh
 
-if=$1
-addr=""
-mask=""
-router=""
+Usage()
+{
+    echo "writing now";
+    exit 0;
+}
 
-# argment check
-if [ $# = 0 ]; then
-    /usr/sbin/networksetup -listnetworkserviceorder
-    exit 0
-fi
+InterfaceNameResolv()
+{
+    en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;
+    en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`;
+    echo ${en};
+}
 
-# interface name resolv
-en=`/usr/sbin/networksetup -listnetworkserviceorder | grep ${if}`
-en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`
-/usr/sbin/networksetup -getinfo ${en} >> /dev/null
-if [ $? != 0 ]; then
-    if [ "$2" = "create" || "$2" = "plumb" ]; then
-        shift;
-        if ["$2" = "vlan" ]; then
-            shift;
-            vlanid=$2;
-            if [ "$3" = "vlandev" ]; then
-                shift;
-                vlandev=$3;
-                /usr/sbin/networksetup -createVLAN ${en} ${vlandev} ${vlanid} 
-            else
-                echo "mifconfig: interface ${en} does not exist"
-                exit 1;
-            fi
-        else
-            echo "mifconfig: interface ${en} does not exist"
-        fi
-    elif [ "$2" = "delete" || "$2" = "unplumb" ]; then
-        shift;
-        if ["$2" = "vlan" ]; then
-            shift; 
-            vlanid=$2;
-            if [ "$3" = "vlandev" ]; then
-                shift;
-                vlandev=$3;
-                /usr/sbin/networksetup -deleteVLAN ${en} ${vlandev} ${vlanid} 
-            else
-                echo "mifconfig: interface ${en} does not exist"
-                exit 1;
-            fi  
-        else
-            echo "mifconfig: interface ${en} does not exist"
-        fi
+PrintInterfaces()
+{
+    if [ $# = 0 ]; then
+        /usr/sbin/networksetup -listnetworkserviceorder;
     else
-        echo "mifconfig: interface ${en} does not exist";
+        ifname=$1;
+        en=`InterfaceNameResolv ${ifname}`;
+        if [ ${en} ]; then
+            /usr/sbin/networksetup -getinfo ${en};
+            exit 0;
+        else
+            echo "mifconfig: interface ${ifname} does not exist";
+            exit 1;
+        fi
+    fi
+}
+
+v4AddressCheck()
+{
+    /usr/bin/perl -e "
+        my @addrs = split(/\//, \$ARGV[0]);
+        if(@addrs > 2) {
+            exit 1;
+        }
+        my @octets = split(/\./, \$addrs[0]);
+        foreach my \$octet(@octets) {
+            if(\$octet < 0 || \$octet > 256) {
+                exit 1;
+            }
+        }
+    " ${check_addr}
+    if [ $? -eq 1 ]; then
+        echo "Invalid IP Address";
         exit 1;
     fi
-fi
+}
 
-# Internet Protocol Version(4 or 6)
-if [ "$2" = "inet" ]; then
-    shift;
+Configure_v4Address()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+    if [ $2 = "inet" ]; then
+        shift
+    fi
+    if [ $2 = "dhcp" ]; then
+        /usr/sbin/networksetup -setdhcp ${en}
+        exit 0;
+    fi
     addr=$2;
-    addrv="inet";
-elif [ "$2" = "inet6" ]; then
-    shift;
-    addr=$2;
-    addrv="inet6";
-else
-    addr=$2;
-    addrv="inet";
-fi
-
-# Default Gateway
-#if [ "$3" != "" ]; then
-#    router=$3;
-#fi
-
-# subnetmask calulation (for v4)
-if [ "${addrv}" = "inet" ]; then
     mask=`echo ${addr} |
         awk -F"/" '{
+            if($2 <= 0 || $2 > 32) {
+                print "Invalid";
+                exit 1;
+            }
             prefix = int($2 / 8);
             mask = 8 - ($2 % 8);
             for(i = 1; i <= prefix; i++) {
@@ -93,39 +83,205 @@ if [ "${addrv}" = "inet" ]; then
             subnetmask = subnet[1] "." subnet[2] "." subnet[3] "." subnet[4];
             print subnetmask;
         }'`
+    if [ "${mask}" == "Invalid" ]; then
+        echo "mifconfig: Invalid Prefix";
+        exit 1;
+    fi
     addr=`echo ${addr} | 
         awk -F"/" '{
-            split($1, ip, ".");
-            for(i = 1; i <= 4; i++) {
-                if(255 <= int(ip[i])){ 
-                    print "Invalid Argment";
-                    exit 1;
-                } 
-            } 
             print $1;
         }'`
+    check_addr=$addr;
+    v4AddressCheck;
     if [ "${mask}" != "0.0.0.0" ]; then
+        cidr_flag=1;
         continue;
-    elif [ "$3" = "netmask" ]; then
+    elif [ "$3" = "netmask" -o "$3" = "mask" ]; then
         shift;
         mask=$3;
+        cidr_flag=0;
     else
         mask=$3;
+        cidr_flag=0;
     fi
+    check_addr=$mask;
+    v4AddressCheck;
+
+    if [ $# -eq 3 -a ${cidr_flag} -eq 1 ]; then
+        router=$3;
+    elif [ $# -eq 4 ]; then
+        router=$4;
+    else
+        router="None";
+    fi
+
+    if [ ${router} == "None" ]; then
+        router="";
+    else
+        echo ${router};
+        router=`echo ${router} | 
+            awk -F"." '{
+                if(NF > 4) {
+                    print "Invalid Router Address";
+                    exit 1;
+                }
+                for(i = 1; i <= 4; i++) {
+                    if(255 <= int($i)) {
+                        print "Invalid Router Address";
+                        exit 1;
+                    } 
+                } 
+                print $0;
+            }'`
+    fi
+
+    /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router};
+
+    exit 0;
+}
+
+FullLength_v6Address()
+{
+    addr=`/usr/bin/perl -e "
+        \\$v6addr = lc(@ARGV[0]);
+        if(length(\\$v6addr) < 2 || length(\\$v6addr) > 39 || 
+            \\$v6addr =~ /(\:\:\:)/ || \\$v6addr !~ /^[0-9a-f:]+$/) {
+            exit 1;
+        }
+        my \\$oct_count = (() = \\$v6addr =~ /\:/g);
+        if(\\$oct_count < 3 || \\$count > 7) {
+            exit 1;
+        }
+        \\$v6addr =~ s/^::/0::/;
+        \\$v6addr =~ s/::$/::0/;
+        \\$v6addr =~ s/::/':0' x (8 - \\$oct_count) . ':'/e;
+        \\$v6addr =~ s/[0-9a-f]+/sprintf('%04s', $&)/egi;
+
+        if(\\$v6addr !~ /^([0-9a-f]{4}:){7}[0-9a-f]{4}$/i) {
+            exit 1;
+        }
+        print \\"\\$v6addr\\";
+        " ${check_v6addr}`;
+
+    if [ $? -eq 1 ]; then
+        echo "mifconfig: Invalid IPv6 Address";
+        exit 1
+    fi
+}
+
+Configure_v6Address()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+    shift;
+    if [ $2 = "automatic" ]; then
+        /usr/sbin/networksetup -setv6automatic ${en}
+        exit 0;
+    fi
+
+    addr=$2;
+    check_v6addr=${addr};
+    FullLength_v6Address;
+
+    echo "mifconfig: not implemented.";
+    echo "Apple さん よろしくおねがいしまぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁす!!!!!!!!!";
+    exit 0;
+}
+
+CreateVLANif()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+    if [ ${en} ]; then
+        echo "mifconfig: ${ifname} exist";
+        exit 1;
+    fi
+
+    if [ $3 = "vlan" ]; then
+        if [ $# = 3 ]; then
+            echo "Please input VLAN ID";
+            exit 1;
+        elif [ $4 -gt 1 -a $4 -lt 4096 ]; then
+            vlanid=$4;
+        else
+            echo "Invalid VLAN ID";
+            exit 1;
+        fi
+    else
+        "Invalid Argument";
+    fi
+
+    if [ $5 = "vlandev" ]; then
+        if [ $# = 5 ]; then
+            echo "Please input VLAN device";
+            exit 1;
+        fi
+        vlandev=$6;
+        /usr/sbin/networksetup -createVLAN ${ifname} ${vlandev} ${vlanid} 
+        exit 0;
+    fi
+}
+
+DestroyVLANif()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+    if ! [ ${en} ]; then
+        echo "mifconfig: ${ifname} does not exist";
+    exit 1;
+    fi
+
+    if [ $3 = "vlan" ]; then
+        if [ $# = 3 ]; then
+            echo "Please input VLAN ID";
+            exit 1;
+        elif [ $4 -gt 1 -a $4 -lt 4096 ]; then
+            vlanid=$4;
+        else
+            echo "Invalid VLAN ID";
+            exit 1;
+        fi
+    else
+        "Invalid Argument";
+    fi
+
+    if [ $5 = "vlandev" ]; then
+        if [ $# = 5 ]; then
+            echo "Please input VLAN device";
+            exit 1;
+        fi
+        vlandev=$6;
+        /usr/sbin/networksetup -deleteVLAN ${ifname} ${vlandev} ${vlanid}
+        exit 0;
+    fi
+}
+
+if [ $# = 0 ]; then
+    PrintInterfaces
+    exit 0;
 fi
 
-# Print Interface Value
 if [ $# = 1 ]; then
-    /usr/sbin/networksetup -getinfo ${en}
-fi
-
-# Setting Interface 
-if [ $# != 1 ]; then
-    if [ "${addrv}" = "inet" ]; then
-        /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router}
-    elif [ "${addrv}" = "inet6" ]; then
-        echo "IPv6 configuration not implimented";
+    if [ $1 = "-h" ]; then
+        Usage
+    else
+        PrintInterfaces $@
     fi
 fi
 
-exit 0;
+ifname=$1;
+
+if [ "$2" = "create" -o "$2" = "plumb" ]; then
+    CreateVLANif $@
+fi
+
+if [ "$2" = "destroy" -o "$2" = "unplumb" ]; then
+    DestroyVLANif $@
+fi
+
+if [ "$2" = "inet" ]; then
+    Configure_v4Address $@
+elif [ "$2" = "inet6" ]; then
+    Configure_v6Address $@
+else
+    Configure_v4Address $@
+fi
+
+exit 0
