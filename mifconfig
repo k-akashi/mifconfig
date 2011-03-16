@@ -69,7 +69,7 @@ PrintInterfaces()
                     print "\tether", ether;
                     print "\tinet", inet, "netmask", netmask;
                     if(inet6 != "none") {
-                        print "\tinet6", inet6, "prefixlen 64?", v6conf; 
+                        print "\tinet6", inet6, "prefixlen 64", v6conf; 
                     }
                     else if(v6conf = "autoconf") {
                             system("/sbin/ifconfig '${ifname}' | grep inet6");
@@ -82,6 +82,35 @@ PrintInterfaces()
             exit 1;
         fi
     fi
+}
+
+PrintAllInterfaces()
+{
+    ifinfo=`/usr/sbin/networksetup -listnetworkserviceorder`
+    echo ${ifinfo} | 
+        awk '{
+                for(i = 1; i <= NF; i++) {
+                    if($i ~ /Hardware/ && $(i + 1) ~ /Port/) {
+                        while(1) {
+                            if($i ~ /Device:/) {
+                                i++;
+                                gsub(/\)/, "", $i);
+                                if($i != "") {
+                                    ifconfig_cmd = "ifconfig " $i " >/dev/null 2>&1";
+                                    mifconfig_cmd = "mifconfig " $i;
+                                    ret = system(ifconfig_cmd);
+                                    if(ret == 0) {
+                                        system(mifconfig_cmd);
+                                    }
+                                }
+                                break;
+                            }
+                            i++;
+                        }
+                    }
+                }
+            }'
+    exit 0;
 }
 
 v4AddressCheck()
@@ -315,6 +344,8 @@ fi
 if [ $# = 1 ]; then
     if [ $1 = "-h" -o $1 = "--help" ]; then
         Usage
+    elif [ "$1" = "-a" ]; then
+        PrintAllInterfaces
     else
         PrintInterfaces $@
     fi
