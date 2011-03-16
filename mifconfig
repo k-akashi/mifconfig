@@ -25,7 +25,57 @@ PrintInterfaces()
         ifname=$1;
         en=`InterfaceNameResolv ${ifname}`;
         if [ ${en} ]; then
-            /usr/sbin/networksetup -getinfo ${en};
+            #/usr/sbin/networksetup -getinfo ${en};
+            echo `/usr/sbin/networksetup -getinfo ${en}` | awk '{
+                    for(i = 1; i <= NF; i++) {
+                        if($i ~ /IP/ && $(i + 1) ~ /address/ && $(i - 1) !~ /IPv6/) {
+                            inet = $(i + 2);
+                            i+2;
+                        }
+                        else if($i ~ /Subnet/ && $(i + 1) ~ /mask/) {
+                            netmask = $(i + 2);
+                            i+2;
+                        }
+                        else if($i ~ /Router:/ && $(i + 1) !~ /IPv6/) {
+                            router = $(i + 1);
+                            i++;
+                        }
+                        else if($i ~/IPv6:/) {
+                            if($(i + 1) ~ /Automatic/) {
+                                v6conf = "autoconf";
+                                i++;
+                            }
+                        }
+                        else if($i ~ /IP/ && $(i + 1) ~ /address/ && $(i - 1) ~ /IPv6/) {
+                            inet6 = $(i + 2);
+                            i+2;
+                        }
+                        else if($i ~ /IPv6/ && $(i + 1) ~ /Router/) {
+                            v6router = $(i + 2);
+                            i+2;
+                        }
+                        else if($i ~ /Ethernet/ && $(i + 1) ~ /Address:/) {
+                            ether = $(i + 2);
+                            i+2;
+                        }
+                        else if($i ~ /'${en}'/ && $(i + 1) ~ /ID/) {
+                            ether = $(i + 2);
+                            i+2;
+                        }
+                    }
+                }
+                END {
+                    print "'${ifname}': MacOSX Build-in Device Name, '${en}'";
+                    print "\tether", ether;
+                    print "\tinet", inet, "netmask", netmask;
+                    if(inet6 != "none") {
+                        print "\tinet6", inet6, "prefixlen 64?", v6conf; 
+                    }
+                    else if(v6conf = "autoconf") {
+                            system("/sbin/ifconfig '${ifname}' | grep inet6");
+                    }
+                    system("/sbin/ifconfig '${ifname}' | /usr/bin/egrep \"media|status\"");
+                }'
             exit 0;
         else
             echo "mifconfig: interface ${ifname} does not exist";
