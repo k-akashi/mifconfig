@@ -139,10 +139,22 @@ Configure_v4Address()
     if [ $2 = "inet" ]; then
         shift
     fi
+
     if [ $2 = "dhcp" ]; then
         /usr/sbin/networksetup -setdhcp ${en}
         exit 0;
     fi
+
+    if [ "$2" = "on" -o "$2" = "up" ]; then
+        /usr/sbin/networksetup -setdhcp ${en}
+        exit 0;
+    fi
+
+    if [ "$2" = "off" -o "$2" = "down" ]; then
+        /usr/sbin/networksetup -setv4off ${en}
+        exit 0;
+    fi
+
     addr=$2;
     mask=`echo ${addr} |
         awk -F"/" '{
@@ -257,6 +269,16 @@ Configure_v6Address()
     shift;
     if [ $2 = "automatic" ]; then
         /usr/sbin/networksetup -setv6automatic ${en}
+        exit 0;
+    fi
+
+    if [ "$2" = "on" -o "$2" = "up" ]; then
+        /usr/sbin/networksetup -setv6automatic ${en}
+        exit 0;
+    fi
+
+    if [ "$2" = "off" -o "$2" = "down" ]; then
+        /usr/sbin/networksetup -setv6off ${en}
         exit 0;
     fi
 
