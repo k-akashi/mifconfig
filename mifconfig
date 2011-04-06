@@ -16,7 +16,30 @@ Usage()
 InterfaceNameResolv()
 {
     en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;
-    en=`echo ${en} | awk '{gsub(",", "", $3); print $3}'`;
+    en=`echo ${en} | awk '{
+        for(i = 0; i < NF; i++) {
+            if($i == "Port:") {
+                ifname = $(i + 1);
+                gsub(/,/, "", ifname);
+                print ifname;
+            }
+        }
+    }'`
+    echo ${en};
+}
+
+InterfaceNameResolvTerminal()
+{
+    en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;
+    en=`echo ${en} | awk '{
+        for(i = 0; i < NF; i++) {
+            if($i == "Device:") {
+                ifname = $(i + 1);
+                gsub(/\)/, "", ifname);
+                print ifname;
+            }
+        }
+    }'`
     echo ${en};
 }
 
@@ -27,6 +50,8 @@ PrintInterfaces()
     else
         ifname=$1;
         en=`InterfaceNameResolv ${ifname}`;
+        interface=`InterfaceNameResolvTerminal ${ifname}`;
+
         if [ ${en} ]; then
             #/usr/sbin/networksetup -getinfo ${en};
             echo `/usr/sbin/networksetup -getinfo ${en}` | awk '{
@@ -68,16 +93,24 @@ PrintInterfaces()
                     }
                 }
                 END {
-                    print "'${ifname}': MacOSX Build-in Device Name, '${en}'";
-                    print "\tether", ether;
-                    print "\tinet", inet, "netmask", netmask;
-                    if(inet6 != "none") {
+                    print "'${interface}': MacOSX Build-in Device Name, '${en}'";
+                    if(!ether) {
+                        system("/sbin/ifconfig '${interface}' | grep ether");
+                    }
+                    else {
+                        print "\tether", ether;
+                    }
+                    if(inet) {
+                        print "\tinet", inet, "netmask", netmask;
+                    }
+                    if(inet6 != "none" && inet6) {
                         print "\tinet6", inet6, "prefixlen 64", v6conf; 
                     }
                     else if(v6conf = "autoconf") {
-                            system("/sbin/ifconfig '${ifname}' | grep inet6");
+                            system("/sbin/ifconfig '${interface}' | grep inet6");
                     }
-                    system("/sbin/ifconfig '${ifname}' | /usr/bin/egrep \"media|status\"");
+                    system("/sbin/ifconfig '${interface}' | /usr/bin/grep vlan:");
+                    system("/sbin/ifconfig '${interface}' | /usr/bin/egrep \"media|status\"");
                 }'
             exit 0;
         else
