@@ -319,7 +319,11 @@ Configure_v4Address()
             }'`
     fi
 
-    /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router};
+    if [ ${vlan} = "true" ]; then
+        /usr/sbin/networksetup -setmanual "${en} Configuration" ${addr} ${mask} ${router};
+    else
+        /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router};
+    fi
 
     exit 0;
 }
