@@ -93,23 +93,53 @@ PrintInterfaces()
                     }
                 }
                 END {
-                    print "'${interface}': MacOSX Build-in Device Name, '${en}'";
-                    if(!ether) {
-                        system("/sbin/ifconfig '${interface}' | grep ether");
-                    }
-                    else {
+                    print "'${ifname}': MacOSX Build-in Device Name, '${en}'";
+
+                    if(ether) {
                         print "\tether", ether;
                     }
+                    else {
+                        system("/sbin/ifconfig '${interface}' | grep ether");
+                    }
+
                     if(inet) {
                         print "\tinet", inet, "netmask", netmask;
                     }
+
                     if(inet6 != "none" && inet6) {
                         print "\tinet6", inet6, "prefixlen 64", v6conf; 
                     }
                     else if(v6conf = "autoconf") {
                             system("/sbin/ifconfig '${interface}' | grep inet6");
                     }
-                    system("/sbin/ifconfig '${interface}' | /usr/bin/grep vlan:");
+
+                    if(system("/sbin/ifconfig '${interface}' | /usr/bin/grep vlan: > /dev/null") == 0) {
+                        while("/sbin/ifconfig '${interface}'" | getline) {
+                            for(i = 0; i < NF; i++) {
+                                if($i == "vlan:") {
+                                    vlanid = $(i + 1);
+                                }
+                            }
+                        }
+                        close("/sbin/ifconfig '${interface}'");
+                        while("/sbin/ifconfig '${interface}'" | getline) {
+                            for(i = 1; i < NF; i++) {
+                                if($i == "interface:") {
+                                    vlandevx = $(i + 1);
+                                    while("networksetup -listnetworkserviceorder | grep " vlandevx  | getline) {
+                                        for(j = 0; j < NF; j++) {
+                                            if($j == "Port:") {
+                                                vlandev = $(j + 1);
+                                                gsub(/,/, "", vlandev);
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        print "\tvlan:", vlanid, "parent interface:", vlandev;
+                    }
                     system("/sbin/ifconfig '${interface}' | /usr/bin/egrep \"media|status\"");
                 }'
             exit 0;
