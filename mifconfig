@@ -138,7 +138,7 @@ PrintInterfaces()
                                 }
                             }
                         }
-                        print "\tvlan:", vlanid, "parent interface:", vlandev;
+                        print "\tvlan:", vlanid, "parent interface:", vlandev "(" vlandevx ")";
                     }
                     system("/sbin/ifconfig '${interface}' | /usr/bin/egrep \"media|status\"");
                 }'
@@ -207,18 +207,36 @@ Configure_v4Address()
         shift
     fi
 
+    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+
+    if [ $? = 0 ]; then
+        vlan="true";
+    fi
+
     if [ $2 = "dhcp" ]; then
-        /usr/sbin/networksetup -setdhcp ${en}
+        if [ ${vlan} = "true" ]; then
+            /usr/sbin/networksetup -setdhcp "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setdhcp ${en}
+        fi
         exit 0;
     fi
 
     if [ "$2" = "on" -o "$2" = "up" ]; then
-        /usr/sbin/networksetup -setdhcp ${en}
+        if [ ${vlan} = "true" ]; then
+            /usr/sbin/networksetup -setdhcp "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setdhcp ${en}
+        fi
         exit 0;
     fi
 
     if [ "$2" = "off" -o "$2" = "down" ]; then
-        /usr/sbin/networksetup -setv4off ${en}
+        if [ ${vlan} = "true" ]; then
+            /usr/sbin/networksetup -setv4off "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setv4off ${en}
+        fi
         exit 0;
     fi
 
@@ -339,18 +357,36 @@ Configure_v6Address()
 {
     en=`InterfaceNameResolv ${ifname}`;
     shift;
+    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+
+    if [ $? = 0 ]; then
+        vlan="true";
+    fi
+
     if [ $2 = "automatic" ]; then
-        /usr/sbin/networksetup -setv6automatic ${en}
+        if [ ${vlan} = "true" ]; then
+            /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setv6automatic ${en}
+        fi
         exit 0;
     fi
 
     if [ "$2" = "on" -o "$2" = "up" ]; then
-        /usr/sbin/networksetup -setv6automatic ${en}
+        if [ ${vlan} = "true" ]; then
+            /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setv6automatic ${en}
+        fi
         exit 0;
     fi
 
     if [ "$2" = "off" -o "$2" = "down" ]; then
-        /usr/sbin/networksetup -setv6off ${en}
+        if [ "${vlan}" = "true" ]; then
+            /usr/sbin/networksetup -setv6off "${en} Configuration"
+        else
+            /usr/sbin/networksetup -setv6off ${en}
+        fi
         exit 0;
     fi
 
@@ -367,8 +403,19 @@ DownInterface()
 {
     en=`InterfaceNameResolv ${ifname}`;
 
-    /usr/sbin/networksetup -setv4off ${en}
-    /usr/sbin/networksetup -setv6off ${en}
+    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+
+    if [ $? = 0 ]; then
+        vlan="true";
+    fi
+
+    if [ ${vlan} = "true" ]; then
+        /usr/sbin/networksetup -setv4off "${en} Configuration"
+        /usr/sbin/networksetup -setv6off "${en} Configuration"
+    else
+        /usr/sbin/networksetup -setv4off ${en}
+        /usr/sbin/networksetup -setv6off ${en}
+    fi
 
     exit 0;
 }
@@ -377,8 +424,19 @@ UpInterface()
 {
     en=`InterfaceNameResolv ${ifname}`;
 
-    /usr/sbin/networksetup -setdhcp ${en}
-    /usr/sbin/networksetup -setv6automatic ${en}
+    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+
+    if [ $? = 0 ]; then
+        vlan="true";
+    fi
+
+    if [ ${vlan} = "true" ]; then
+        /usr/sbin/networksetup -setdhcp "${en} Configuration"
+        /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+    else
+        /usr/sbin/networksetup -setdhcp ${en}
+        /usr/sbin/networksetup -setv6automatic ${en}
+    fi
 
     exit 0;
 }
