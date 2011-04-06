@@ -201,7 +201,6 @@ Configure_v4Address()
     if [ ${router} == "None" ]; then
         router="";
     else
-        echo ${router};
         router=`echo ${router} | 
             awk -F"." '{
                 if(NF > 4) {
@@ -232,7 +231,7 @@ FullLength_v6Address()
             exit 1;
         }
         my \\$oct_count = (() = \\$v6addr =~ /\:/g);
-        if(\\$oct_count < 3 || \\$count > 7) {
+        if(\\$oct_count < 2 || \\$count > 7) {
             exit 1;
         }
         \\$v6addr =~ s/^::/0::/;
@@ -292,7 +291,7 @@ CreateVLANif()
         "Invalid Argument";
     fi
 
-    if [ $5 = "vlandev" ]; then
+    if [ "$5" = "vlandev" -o "$5" = "vlanif" ]; then
         if [ $# = 5 ]; then
             echo "Please input VLAN device";
             exit 1;
@@ -300,40 +299,55 @@ CreateVLANif()
         vlandev=$6;
         /usr/sbin/networksetup -createVLAN ${ifname} ${vlandev} ${vlanid} 
         exit 0;
+    else
+        echo "Please vlandev or vlanif";
+        exit 1;
     fi
+}
+
+ResolvVLANifName()
+{
+    en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;    
+    en=`echo ${en} | awk '{
+        for(i = 0; i <= NF; i++) {
+            if($i == "Device:") {
+                vlanif = $(i + 1);
+                gsub(/\)/, "", vlanif)
+                print vlanif;
+            }
+        }
+    }'`
+    echo ${en};
 }
 
 DestroyVLANif()
 {
-    en=`InterfaceNameResolv ${ifname}`;
+    en=`ResolvVLANifName ${ifname}`;
+
     if ! [ ${en} ]; then
         echo "mifconfig: ${ifname} does not exist";
     exit 1;
     fi
 
-    if [ $3 = "vlan" ]; then
-        if [ $# = 3 ]; then
-            echo "Please input VLAN ID";
-            exit 1;
-        elif [ $4 -gt 1 -a $4 -lt 4096 ]; then
-            vlanid=$4;
-        else
-            echo "Invalid VLAN ID";
-            exit 1;
-        fi
-    else
-        "Invalid Argument";
-    fi
+    vlanid=`/sbin/ifconfig ${en} | awk '{
+        for(i = 0; i < NF; i++) {
+            if($i == "vlan:") {
+                print $(i + 1);
+            }
+        }
+    }'`
 
-    if [ $5 = "vlandev" ]; then
-        if [ $# = 5 ]; then
-            echo "Please input VLAN device";
-            exit 1;
-        fi
-        vlandev=$6;
-        /usr/sbin/networksetup -deleteVLAN ${ifname} ${vlandev} ${vlanid}
-        exit 0;
-    fi
+    vlandev=`/sbin/ifconfig ${en} | awk '{
+        for(i = 0; i < NF; i++) {
+            if($i == "interface:") {
+                print $(i + 1);
+            }
+        }
+    }'`
+ 
+    /usr/sbin/networksetup -deleteVLAN ${en} ${vlandev} ${vlanid}
+
+    exit 0;
 }
 
 if [ $# = 0 ]; then
