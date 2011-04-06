@@ -2,11 +2,14 @@
 
 Usage()
 {
-    echo "usage:\tmifconfig INTERFACE ADDRESS_FAMILY ADDRESS [ROUTER]";
+    echo "usage:\tmifconfig INTERFACE ADDRESS_FAMILY ADDRESS [ROUTER-ADDRESS]";
+    echo "\tmifconfig INTERFACE [on,off or up,down]";
     echo "\tmifconfig INTERFACE inet dhcp";
+    echo "\tmifconfig INTERFACE inet [on,off or up,down]";
     echo "\tmifconfig INTERFACE inet6 automatic";
+    echo "\tmifconfig INTERFACE inet6 [on,off or up,down]";
     echo "\tmifconfig VLAN-INTERFACE create vlan VLAN-ID vlandev PHYSICAL-DEVICE";
-    echo "\tmifconfig VLAN-INTERFACE destroy vlan VLAN-ID vlandev PHYSICAL-DEVICE";
+    echo "\tmifconfig VLAN-INTERFACE destroy"; 
     exit 0;
 }
 
@@ -127,6 +130,7 @@ v4AddressCheck()
             }
         }
     " ${check_addr}
+
     if [ $? -eq 1 ]; then
         echo "Invalid IP Address";
         exit 1;
@@ -178,16 +182,20 @@ Configure_v4Address()
             subnetmask = subnet[1] "." subnet[2] "." subnet[3] "." subnet[4];
             print subnetmask;
         }'`
+
     if [ "${mask}" == "Invalid" ]; then
         echo "mifconfig: Invalid Prefix";
         exit 1;
     fi
+
     addr=`echo ${addr} | 
         awk -F"/" '{
             print $1;
         }'`
+
     check_addr=$addr;
     v4AddressCheck;
+
     if [ "${mask}" != "0.0.0.0" ]; then
         cidr_flag=1;
         continue;
@@ -199,6 +207,7 @@ Configure_v4Address()
         mask=$3;
         cidr_flag=0;
     fi
+
     check_addr=$mask;
     v4AddressCheck;
 
