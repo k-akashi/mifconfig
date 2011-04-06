@@ -269,6 +269,26 @@ Configure_v6Address()
     exit 0;
 }
 
+DownInterface()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+
+    /usr/sbin/networksetup -setv4off ${en}
+    /usr/sbin/networksetup -setv6off ${en}
+
+    exit 0;
+}
+
+UpInterface()
+{
+    en=`InterfaceNameResolv ${ifname}`;
+
+    /usr/sbin/networksetup -setdhcp ${en}
+    /usr/sbin/networksetup -setv6automatic ${en}
+
+    exit 0;
+}
+
 CreateVLANif()
 {
     en=`InterfaceNameResolv ${ifname}`;
@@ -373,6 +393,14 @@ fi
 
 if [ "$2" = "destroy" -o "$2" = "unplumb" ]; then
     DestroyVLANif $@
+fi
+
+if [ "$2" = "on" -o "$2" = "up" ]; then
+    UpInterface $@
+fi
+
+if [ "$2" = "off" -o "$2" = "down" ]; then
+    DownInterface $@
 fi
 
 if [ "$2" = "inet" ]; then
