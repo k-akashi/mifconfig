@@ -53,8 +53,16 @@ PrintInterfaces()
         interface=`InterfaceNameResolvTerminal ${ifname}`;
 
         if [ ${en} ]; then
-            #/usr/sbin/networksetup -getinfo ${en};
-            echo `/usr/sbin/networksetup -getinfo ${en}` | awk '{
+            /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+
+            if [ $? = 0 ]; then
+                vlan="true";
+            fi
+
+            if [ "${vlan}" = "true" ]; then
+                en="${en} Configuration";
+            fi
+            echo `/usr/sbin/networksetup -getinfo \"${en}\"` | awk '{
                     for(i = 1; i <= NF; i++) {
                         if($i ~ /IP/ && $(i + 1) ~ /address/ && $(i - 1) !~ /IPv6/) {
                             inet = $(i + 2);
@@ -214,7 +222,7 @@ Configure_v4Address()
     fi
 
     if [ $2 = "dhcp" ]; then
-        if [ ${vlan} = "true" ]; then
+        if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setdhcp "${en} Configuration"
         else
             /usr/sbin/networksetup -setdhcp ${en}
@@ -223,7 +231,7 @@ Configure_v4Address()
     fi
 
     if [ "$2" = "on" -o "$2" = "up" ]; then
-        if [ ${vlan} = "true" ]; then
+        if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setdhcp "${en} Configuration"
         else
             /usr/sbin/networksetup -setdhcp ${en}
@@ -232,7 +240,7 @@ Configure_v4Address()
     fi
 
     if [ "$2" = "off" -o "$2" = "down" ]; then
-        if [ ${vlan} = "true" ]; then
+        if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setv4off "${en} Configuration"
         else
             /usr/sbin/networksetup -setv4off ${en}
@@ -319,7 +327,7 @@ Configure_v4Address()
             }'`
     fi
 
-    if [ ${vlan} = "true" ]; then
+    if [ "${vlan}" = "true" ]; then
         /usr/sbin/networksetup -setmanual "${en} Configuration" ${addr} ${mask} ${router};
     else
         /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router};
@@ -368,7 +376,7 @@ Configure_v6Address()
     fi
 
     if [ $2 = "automatic" ]; then
-        if [ ${vlan} = "true" ]; then
+        if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setv6automatic "${en} Configuration"
         else
             /usr/sbin/networksetup -setv6automatic ${en}
@@ -377,7 +385,7 @@ Configure_v6Address()
     fi
 
     if [ "$2" = "on" -o "$2" = "up" ]; then
-        if [ ${vlan} = "true" ]; then
+        if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setv6automatic "${en} Configuration"
         else
             /usr/sbin/networksetup -setv6automatic ${en}
@@ -413,7 +421,7 @@ DownInterface()
         vlan="true";
     fi
 
-    if [ ${vlan} = "true" ]; then
+    if [ "${vlan}" = "true" ]; then
         /usr/sbin/networksetup -setv4off "${en} Configuration"
         /usr/sbin/networksetup -setv6off "${en} Configuration"
     else
@@ -434,7 +442,7 @@ UpInterface()
         vlan="true";
     fi
 
-    if [ ${vlan} = "true" ]; then
+    if [ "${vlan}" = "true" ]; then
         /usr/sbin/networksetup -setdhcp "${en} Configuration"
         /usr/sbin/networksetup -setv6automatic "${en} Configuration"
     else
