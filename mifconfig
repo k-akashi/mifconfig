@@ -481,7 +481,7 @@ CreateVLANif()
             exit 1;
         fi
         vlandev=$6;
-        /usr/sbin/networksetup -createVLAN ${ifname} ${vlandev} ${vlanid} 
+        /usr/sbin/networksetup -createVLAN "${ifname}" ${vlandev} ${vlanid} 
         exit 0;
     else
         echo "Please vlandev or vlanif";
