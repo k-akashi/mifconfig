@@ -62,7 +62,8 @@ PrintInterfaces()
             if [ "${vlan}" = "true" ]; then
                 en="${en} Configuration";
             fi
-            echo `/usr/sbin/networksetup -getinfo \"${en}\"` | awk '{
+
+            echo `/usr/sbin/networksetup -getinfo "${en}"` | awk '{
                     for(i = 1; i <= NF; i++) {
                         if($i ~ /IP/ && $(i + 1) ~ /address/ && $(i - 1) !~ /IPv6/) {
                             inet = $(i + 2);
@@ -94,14 +95,14 @@ PrintInterfaces()
                             ether = $(i + 2);
                             i+2;
                         }
-                        else if($i ~ /'${en}'/ && $(i + 1) ~ /ID/) {
+                        else if($i ~ /'"${en}"'/ && $(i + 1) ~ /ID/) {
                             ether = $(i + 2);
                             i+2;
                         }
                     }
                 }
                 END {
-                    print "'${ifname}': MacOSX Build-in Device Name, '${en}'";
+                    print "'"${ifname}"': MacOSX Build-in Device Name, '"${en}"'";
 
                     if(ether) {
                         print "\tether", ether;
@@ -118,19 +119,19 @@ PrintInterfaces()
                         print "\tinet6", inet6, "prefixlen 64", v6conf; 
                     }
                     else if(v6conf = "autoconf") {
-                            system("/sbin/ifconfig '${interface}' | grep inet6");
+                            system("/sbin/ifconfig '"${interface}"' | grep inet6");
                     }
 
-                    if(system("/sbin/ifconfig '${interface}' | /usr/bin/grep vlan: > /dev/null") == 0) {
-                        while("/sbin/ifconfig '${interface}'" | getline) {
+                    if(system("/sbin/ifconfig '"${interface}"' | /usr/bin/grep vlan: > /dev/null") == 0) {
+                        while("/sbin/ifconfig '"${interface}"'" | getline) {
                             for(i = 0; i < NF; i++) {
                                 if($i == "vlan:") {
                                     vlanid = $(i + 1);
                                 }
                             }
                         }
-                        close("/sbin/ifconfig '${interface}'");
-                        while("/sbin/ifconfig '${interface}'" | getline) {
+                        close("/sbin/ifconfig '"${interface}"'");
+                        while("/sbin/ifconfig '"${interface}"'" | getline) {
                             for(i = 1; i < NF; i++) {
                                 if($i == "interface:") {
                                     vlandevx = $(i + 1);
@@ -148,7 +149,7 @@ PrintInterfaces()
                         }
                         print "\tvlan:", vlanid, "parent interface:", vlandev "(" vlandevx ")";
                     }
-                    system("/sbin/ifconfig '${interface}' | /usr/bin/egrep \"media|status\"");
+                    system("/sbin/ifconfig '"${interface}"' | /usr/bin/egrep \"media|status\"");
                 }'
             exit 0;
         else
@@ -375,7 +376,7 @@ Configure_v6Address()
         vlan="true";
     fi
 
-    if [ $2 = "automatic" ]; then
+    if [ "$2" = "automatic" -o "$2" = "autoconf" ]; then
         if [ "${vlan}" = "true" ]; then
             /usr/sbin/networksetup -setv6automatic "${en} Configuration"
         else
@@ -403,6 +404,30 @@ Configure_v6Address()
     fi
 
     addr=$2;
+    addr=`echo ${addr} | awk '{
+        split($0, addr, "/");
+        if(length(addr) == 1) {
+            print $0;
+            exit 0;
+        }
+        else if(length(addr) == 2) {
+            if(addr[2] == 64) {
+                print addr[1];
+                exit 0;
+            }
+            else {
+                exit 1;
+            }
+        }
+        else {
+            exit 1;
+        }
+    }'`
+    if [ $? = 1 ];
+    then
+        echo "mifconfig: Invalid Prefix";
+        exit 1;
+    fi
     check_v6addr=${addr};
     FullLength_v6Address;
 
