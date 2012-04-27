@@ -15,30 +15,27 @@ Usage()
 
 InterfaceNameResolv()
 {
-    en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;
-    en=`echo ${en} | awk '{
-        for(i = 0; i < NF; i++) {
-            if($i == "Port:") {
-                ifname = $(i + 1);
-                gsub(/,/, "", ifname);
-                print ifname;
-            }
-        }
+    en=`/usr/sbin/networksetup -listnetworkserviceorder | awk -F, '{
+        if($0 ~ /'"$1"'/) {
+            split($1, hwport, ":");
+            sub(/^[ \t]+/, "", hwport[2]);
+            print hwport[2];
+        };
     }'`
     echo ${en};
 }
 
 InterfaceNameResolvTerminal()
 {
-    en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;
-    en=`echo ${en} | awk '{
-        for(i = 0; i < NF; i++) {
-            if($i == "Device:") {
-                ifname = $(i + 1);
-                gsub(/\)/, "", ifname);
-                print ifname;
+    en=`/usr/sbin/networksetup -listnetworkserviceorder | awk -F, '{
+        if($0 ~ /'"$1"'/) {
+            split($2, hwport, ":");
+            sub(/^[ \t]+/, "", hwport[2]);
+            sub(/[)]+$/, "", hwport[2]); 
+            if(hwport[2] != "") {
+                print hwport[2];
             }
-        }
+        };
     }'`
     echo ${en};
 }
@@ -52,8 +49,8 @@ PrintInterfaces()
         en=`InterfaceNameResolv ${ifname}`;
         interface=`InterfaceNameResolvTerminal ${ifname}`;
 
-        if [ ${en} ]; then
-            /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+        if [ "${en}" ]; then
+            /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
             if [ $? = 0 ]; then
                 vlan="true";
@@ -253,7 +250,7 @@ Configure_v4Address()
     mask=`echo ${addr} |
         awk -F"/" '{
             if($2 <= 0 || $2 > 32) {
-                print "Invalid";
+                print "Invalid Prefix";
                 exit 1;
             }
             prefix = int($2 / 8);
