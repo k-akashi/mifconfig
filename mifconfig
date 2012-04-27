@@ -22,7 +22,7 @@ InterfaceNameResolv()
             print hwport[2];
         };
     }'`
-    echo ${en};
+    echo "${en}";
 }
 
 InterfaceNameResolvTerminal()
@@ -37,26 +37,36 @@ InterfaceNameResolvTerminal()
             }
         };
     }'`
-    echo ${en};
+    echo "${en}";
 }
 
 PrintInterfaces()
 {
-    if [ $# = 0 ]; then
+    if [ $# = 0 ];
+    then
         /usr/sbin/networksetup -listnetworkserviceorder;
     else
+        ifconfig $1 > /dev/null 2>&1;
+        if [ $? != 0 ];
+        then
+            echo "mifconfig: interface $1 does not exist";
+            exit 1;
+        fi
         ifname=$1;
         en=`InterfaceNameResolv ${ifname}`;
         interface=`InterfaceNameResolvTerminal ${ifname}`;
 
-        if [ "${en}" ]; then
+        if [ "${en}" ];
+        then
             /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
-            if [ $? = 0 ]; then
+            if [ $? = 0 ];
+            then
                 vlan="true";
             fi
 
-            if [ "${vlan}" = "true" ]; then
+            if [ "${vlan}" = "true" ];
+            then
                 en="${en} Configuration";
             fi
 
@@ -133,13 +143,10 @@ PrintInterfaces()
                                 if($i == "interface:") {
                                     vlandevx = $(i + 1);
                                     while("networksetup -listnetworkserviceorder | grep " vlandevx  | getline) {
-                                        for(j = 0; j < NF; j++) {
-                                            if($j == "Port:") {
-                                                vlandev = $(j + 1);
-                                                gsub(/,/, "", vlandev);
-                                                break;
-                                            }
-                                        }
+                                        split($0, line, ",");
+                                        split(line[1], hwport, ":");
+                                        sub(/^[ \t]+/, "", hwport[2]);
+                                        vlandev = hwport[2];
                                     }
                                 }
                             }
@@ -198,9 +205,10 @@ v4AddressCheck()
                 exit 1;
             }
         }
-    " ${check_addr}
+    " ${check_addr};
 
-    if [ $? -eq 1 ]; then
+    if [ $? -eq 1 ];
+    then
         echo "Invalid IP Address";
         exit 1;
     fi
@@ -209,39 +217,47 @@ v4AddressCheck()
 Configure_v4Address()
 {
     en=`InterfaceNameResolv ${ifname}`;
-    if [ $2 = "inet" ]; then
-        shift
+    if [ $2 = "inet" ];
+    then
+        shift;
     fi
 
-    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+    /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
-    if [ $? = 0 ]; then
+    if [ $? = 0 ];
+    then
         vlan="true";
     fi
 
-    if [ $2 = "dhcp" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setdhcp "${en} Configuration"
+    if [ $2 = "dhcp" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setdhcp "${en} Configuration";
         else
-            /usr/sbin/networksetup -setdhcp ${en}
+            /usr/sbin/networksetup -setdhcp "${en}";
         fi
         exit 0;
     fi
 
-    if [ "$2" = "on" -o "$2" = "up" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setdhcp "${en} Configuration"
+    if [ "$2" = "on" -o "$2" = "up" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setdhcp "${en} Configuration";
         else
-            /usr/sbin/networksetup -setdhcp ${en}
+            /usr/sbin/networksetup -setdhcp "${en}";
         fi
         exit 0;
     fi
 
-    if [ "$2" = "off" -o "$2" = "down" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setv4off "${en} Configuration"
+    if [ "$2" = "off" -o "$2" = "down" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setv4off "${en} Configuration";
         else
-            /usr/sbin/networksetup -setv4off ${en}
+            /usr/sbin/networksetup -setv4off "${en}";
         fi
         exit 0;
     fi
@@ -268,9 +284,10 @@ Configure_v4Address()
             }
             subnetmask = subnet[1] "." subnet[2] "." subnet[3] "." subnet[4];
             print subnetmask;
-        }'`
+        }'`;
 
-    if [ "${mask}" == "Invalid" ]; then
+    if [ "${mask}" == "Invalid" ];
+    then
         echo "mifconfig: Invalid Prefix";
         exit 1;
     fi
@@ -283,10 +300,12 @@ Configure_v4Address()
     check_addr=$addr;
     v4AddressCheck;
 
-    if [ "${mask}" != "0.0.0.0" ]; then
+    if [ "${mask}" != "0.0.0.0" ];
+    then
         cidr_flag=1;
         continue;
-    elif [ "$3" = "netmask" -o "$3" = "mask" ]; then
+    elif [ "$3" = "netmask" -o "$3" = "mask" ];
+    then
         shift;
         mask=$3;
         cidr_flag=0;
@@ -298,15 +317,18 @@ Configure_v4Address()
     check_addr=$mask;
     v4AddressCheck;
 
-    if [ $# -eq 3 -a ${cidr_flag} -eq 1 ]; then
+    if [ $# -eq 3 -a ${cidr_flag} -eq 1 ];
+    then
         router=$3;
-    elif [ $# -eq 4 ]; then
+    elif [ $# -eq 4 ];
+    then
         router=$4;
     else
         router="None";
     fi
 
-    if [ ${router} == "None" ]; then
+    if [ ${router} == "None" ];
+    then
         router="";
     else
         router=`echo ${router} | 
@@ -325,10 +347,11 @@ Configure_v4Address()
             }'`
     fi
 
-    if [ "${vlan}" = "true" ]; then
+    if [ "${vlan}" = "true" ];
+    then
         /usr/sbin/networksetup -setmanual "${en} Configuration" ${addr} ${mask} ${router};
     else
-        /usr/sbin/networksetup -setmanual ${en} ${addr} ${mask} ${router};
+        /usr/sbin/networksetup -setmanual "${en}" ${addr} ${mask} ${router};
     fi
 
     exit 0;
@@ -357,7 +380,8 @@ FullLength_v6Address()
         print \\"\\$v6addr\\";
         " ${check_v6addr}`;
 
-    if [ $? -eq 1 ]; then
+    if [ $? -eq 1 ];
+    then
         echo "mifconfig: Invalid IPv6 Address";
         exit 1
     fi
@@ -367,35 +391,42 @@ Configure_v6Address()
 {
     en=`InterfaceNameResolv ${ifname}`;
     shift;
-    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+    /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
-    if [ $? = 0 ]; then
+    if [ $? = 0 ];
+    then
         vlan="true";
     fi
 
-    if [ "$2" = "automatic" -o "$2" = "autoconf" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+    if [ "$2" = "automatic" -o "$2" = "autoconf" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setv6automatic "${en} Configuration";
         else
-            /usr/sbin/networksetup -setv6automatic ${en}
+            /usr/sbin/networksetup -setv6automatic "${en}";
         fi
         exit 0;
     fi
 
-    if [ "$2" = "on" -o "$2" = "up" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+    if [ "$2" = "on" -o "$2" = "up" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setv6automatic "${en} Configuration";
         else
-            /usr/sbin/networksetup -setv6automatic ${en}
+            /usr/sbin/networksetup -setv6automatic "${en}";
         fi
         exit 0;
     fi
 
-    if [ "$2" = "off" -o "$2" = "down" ]; then
-        if [ "${vlan}" = "true" ]; then
-            /usr/sbin/networksetup -setv6off "${en} Configuration"
+    if [ "$2" = "off" -o "$2" = "down" ];
+    then
+        if [ "${vlan}" = "true" ];
+        then
+            /usr/sbin/networksetup -setv6off "${en} Configuration";
         else
-            /usr/sbin/networksetup -setv6off ${en}
+            /usr/sbin/networksetup -setv6off "${en}";
         fi
         exit 0;
     fi
@@ -437,18 +468,20 @@ DownInterface()
 {
     en=`InterfaceNameResolv ${ifname}`;
 
-    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+    /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
-    if [ $? = 0 ]; then
+    if [ $? = 0 ];
+    then
         vlan="true";
     fi
 
-    if [ "${vlan}" = "true" ]; then
-        /usr/sbin/networksetup -setv4off "${en} Configuration"
-        /usr/sbin/networksetup -setv6off "${en} Configuration"
+    if [ "${vlan}" = "true" ];
+    then
+        /usr/sbin/networksetup -setv4off "${en} Configuration";
+        /usr/sbin/networksetup -setv6off "${en} Configuration";
     else
-        /usr/sbin/networksetup -setv4off ${en}
-        /usr/sbin/networksetup -setv6off ${en}
+        /usr/sbin/networksetup -setv4off "${en}";
+        /usr/sbin/networksetup -setv6off "${en}";
     fi
 
     exit 0;
@@ -458,18 +491,20 @@ UpInterface()
 {
     en=`InterfaceNameResolv ${ifname}`;
 
-    /usr/sbin/networksetup -listnetworkserviceorder | grep ${en} | grep Configuration > /dev/null;
+    /usr/sbin/networksetup -listnetworkserviceorder | grep "${en}" | grep Configuration > /dev/null;
 
-    if [ $? = 0 ]; then
+    if [ $? = 0 ];
+    then
         vlan="true";
     fi
 
-    if [ "${vlan}" = "true" ]; then
-        /usr/sbin/networksetup -setdhcp "${en} Configuration"
-        /usr/sbin/networksetup -setv6automatic "${en} Configuration"
+    if [ "${vlan}" = "true" ];
+    then
+        /usr/sbin/networksetup -setdhcp "${en} Configuration";
+        /usr/sbin/networksetup -setv6automatic "${en} Configuration";
     else
-        /usr/sbin/networksetup -setdhcp ${en}
-        /usr/sbin/networksetup -setv6automatic ${en}
+        /usr/sbin/networksetup -setdhcp "${en}";
+        /usr/sbin/networksetup -setv6automatic "${en}";
     fi
 
     exit 0;
@@ -478,16 +513,20 @@ UpInterface()
 CreateVLANif()
 {
     en=`InterfaceNameResolv ${ifname}`;
-    if [ ${en} ]; then
+    if [ "${en}" ];
+    then
         echo "mifconfig: ${ifname} exist";
         exit 1;
     fi
 
-    if [ $3 = "vlan" ]; then
-        if [ $# = 3 ]; then
+    if [ $3 = "vlan" ];
+    then
+        if [ $# = 3 ];
+        then
             echo "Please input VLAN ID";
             exit 1;
-        elif [ $4 -gt 1 -a $4 -lt 4096 ]; then
+        elif [ $4 -gt 1 -a $4 -lt 4096 ];
+        then
             vlanid=$4;
         else
             echo "Invalid VLAN ID";
@@ -497,8 +536,10 @@ CreateVLANif()
         "Invalid Argument";
     fi
 
-    if [ "$5" = "vlandev" -o "$5" = "vlanif" ]; then
-        if [ $# = 5 ]; then
+    if [ "$5" = "vlandev" -o "$5" = "vlanif" ];
+    then
+        if [ $# = 5 ];
+        then
             echo "Please input VLAN device";
             exit 1;
         fi
@@ -514,7 +555,7 @@ CreateVLANif()
 ResolvVLANifName()
 {
     en=`/usr/sbin/networksetup -listnetworkserviceorder | grep $1`;    
-    en=`echo ${en} | awk '{
+    en=`echo "${en}" | awk '{
         for(i = 0; i <= NF; i++) {
             if($i == "Device:") {
                 vlanif = $(i + 1);
@@ -523,19 +564,20 @@ ResolvVLANifName()
             }
         }
     }'`
-    echo ${en};
+    echo "${en}";
 }
 
 DestroyVLANif()
 {
     en=`ResolvVLANifName ${ifname}`;
 
-    if ! [ ${en} ]; then
+    if ! [ "${en}" ];
+    then
         echo "mifconfig: ${ifname} does not exist";
     exit 1;
     fi
 
-    vlanid=`/sbin/ifconfig ${en} | awk '{
+    vlanid=`/sbin/ifconfig "${en}" | awk '{
         for(i = 0; i < NF; i++) {
             if($i == "vlan:") {
                 print $(i + 1);
@@ -543,7 +585,7 @@ DestroyVLANif()
         }
     }'`
 
-    vlandev=`/sbin/ifconfig ${en} | awk '{
+    vlandev=`/sbin/ifconfig "${en}" | awk '{
         for(i = 0; i < NF; i++) {
             if($i == "interface:") {
                 print $(i + 1);
@@ -551,20 +593,24 @@ DestroyVLANif()
         }
     }'`
  
-    /usr/sbin/networksetup -deleteVLAN ${en} ${vlandev} ${vlanid}
+    /usr/sbin/networksetup -deleteVLAN "${en}" ${vlandev} ${vlanid}
 
     exit 0;
 }
 
-if [ $# = 0 ]; then
+if [ $# = 0 ];
+then
     PrintInterfaces
     exit 0;
 fi
 
-if [ $# = 1 ]; then
-    if [ $1 = "-h" -o $1 = "--help" ]; then
+if [ $# = 1 ];
+then
+    if [ $1 = "-h" -o $1 = "--help" ];
+    then
         Usage
-    elif [ "$1" = "-a" ]; then
+    elif [ "$1" = "-a" ];
+    then
         PrintAllInterfaces
     else
         PrintInterfaces $@
@@ -573,25 +619,31 @@ fi
 
 ifname=$1;
 
-if [ "$2" = "create" -o "$2" = "plumb" ]; then
+if [ "$2" = "create" -o "$2" = "plumb" ];
+then
     CreateVLANif $@
 fi
 
-if [ "$2" = "destroy" -o "$2" = "unplumb" ]; then
+if [ "$2" = "destroy" -o "$2" = "unplumb" ];
+then
     DestroyVLANif $@
 fi
 
-if [ "$2" = "on" -o "$2" = "up" ]; then
+if [ "$2" = "on" -o "$2" = "up" ];
+then
     UpInterface $@
 fi
 
-if [ "$2" = "off" -o "$2" = "down" ]; then
+if [ "$2" = "off" -o "$2" = "down" ];
+then
     DownInterface $@
 fi
 
-if [ "$2" = "inet" ]; then
+if [ "$2" = "inet" ];
+then
     Configure_v4Address $@
-elif [ "$2" = "inet6" ]; then
+elif [ "$2" = "inet6" ];
+then
     Configure_v6Address $@
 else
     Configure_v4Address $@
