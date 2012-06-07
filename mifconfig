@@ -432,14 +432,14 @@ Configure_v6Address()
     fi
 
     addr=$2;
-    addr=`echo ${addr} | awk '{
+    v6addr=`echo ${addr} | awk '{
         split($0, addr, "/");
         if(length(addr) == 1) {
             print $0;
             exit 0;
         }
         else if(length(addr) == 2) {
-            if(addr[2] == 64) {
+            if(addr[2] <= 128) {
                 print addr[1];
                 exit 0;
             }
@@ -451,16 +451,42 @@ Configure_v6Address()
             exit 1;
         }
     }'`
+
+    prefix=`echo ${addr} | awk '{
+        split($0, addr, "/");
+        if(length(addr) == 1) {
+            print 64;
+            exit 0;
+        }
+        else if(length(addr) == 2) {
+            if(addr[2] <= 128) {
+                print addr[2];
+                exit 0;
+            }
+            else {
+                exit 1;
+            }
+        }
+        else {
+            exit 1;
+        }
+    }'`
+
+    if [ $# = 3 ];
+    then
+        router=${3};
+        check_v6addr=${router};
+    fi
     if [ $? = 1 ];
     then
         echo "mifconfig: Invalid Prefix";
         exit 1;
     fi
-    check_v6addr=${addr};
-    FullLength_v6Address;
+    check_v6addr=${v6addr};
+    #FullLength_v6Address;
 
-    echo "mifconfig: not implemented.";
-    echo "Apple さん よろしくおねがいしまぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁぁす!!!!!!!!!";
+    echo "/usr/sbin/networksetup -setv6manual ${en} ${v6addr} ${prefix} ${router}"
+    /usr/sbin/networksetup -setv6manual ${en} ${v6addr} ${prefix} ${router}
     exit 0;
 }
 
