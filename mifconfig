@@ -485,7 +485,6 @@ Configure_v6Address()
     check_v6addr=${v6addr};
     #FullLength_v6Address;
 
-    echo "/usr/sbin/networksetup -setv6manual ${en} ${v6addr} ${prefix} ${router}"
     /usr/sbin/networksetup -setv6manual ${en} ${v6addr} ${prefix} ${router}
     exit 0;
 }
